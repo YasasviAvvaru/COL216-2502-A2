@@ -92,7 +92,7 @@ Finally, you should also be able to ignore blank lines and comments (which will 
 Note that you do not have to implement any of these operations bit-wise, you can simply use built-in C++ operations to compute the result after the required number of cycles have elapsed.
 
 ## Processor Design
-The C++ class has the following members that need to be maintained accurately: `pc` corresponding to the Program Counter (incremented by 1 per instruction), `ARF` (register file) and the `exception` boolean (which is set in case of an exception). You must also implement the BranchPredictor `bp`. Of course, to implement Tomasulo's algorithm correctly, you also need the Register Alias Table (`RAT`), a Reorder Buffer (`ROB`) and a Reservation Station (`RS`) for each execution unit and the LoadStoreQueue.
+The C++ class has the following members that need to be maintained accurately: `pc` corresponding to the Program Counter (incremented by 1 per instruction), `ARF` (register file) and the `exception` boolean (which is set in case of an exception). You must also implement the BranchPredictor `bp`. Of course, to implement Tomasulo's algorithm correctly, you also need the Register Alias Table (`RAT`), a Reorder Buffer (`ROB`) and a Reservation Station (`RS`) for each execution unit and the LoadStoreQueue (`LSQ`).
 
 The processor is pipelined with 4 stages: Fetch, Decode, Execute/Broadcast and Commit.
 
@@ -106,7 +106,7 @@ Though we will execute instructions out-of-order, the most important thing to ke
 
 If any instructions are completed on any units, the units broadcast the computation result at the end of that very cycle (before the start of the next cycle) to all other stations/the ROB (so that they can perform tag managing and use the result). We assume a Common Data Bus of sufficient width, so that even if multiple units finish their execution in the same cycle, they can all broadcast their results. All Reservation Station entries are immediately deallocated once they are no longer needed at this time as well. 
 
-Finally, the LoadStoreQueue is unique in the sense that it can only execute in **sequential order**, that is, the LoadStoreQueue unit does **not** execute instructions dispatched to it out-of-order. This is because Memory addresses are not aliased like registers, and therefore cannot be handled out-of-order like registers. 
+Finally, the `LSQ` is unique in the sense that it can only execute in **sequential order**, that is, the `LSQ` does **not** execute instructions dispatched to it out-of-order. This is because Memory addresses are not aliased like registers, and therefore cannot be handled out-of-order like registers. 
 
 All exceptions are only detected in the final cycle of the execution of the instruction. In such a case, the execution unit/load store queue sets the `exception` flag when broadcasting the result, which is passed on to the ROB entry for the instruction. The exception propagates to the Processor's `exception` bit ONLY AT THE TIME OF RETIREMENT of the instruction in the ROB (otherwise, branch mispredictions could trigger false exceptions).
 
