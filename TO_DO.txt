@@ -1,0 +1,5 @@
+Basics.h : 
+1)look at the configs and defns of the ProcConfig, ROBuffer, RS.
+
+compiler.py : Need to look at this in depth
+

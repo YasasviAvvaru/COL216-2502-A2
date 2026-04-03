@@ -1,8 +1,12 @@
 #pragma once
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <vector>
 #include <iomanip>
+#include <algorithm>
+#include <cctype>
+#include <stdexcept>
 #include "Basics.h"
 #include "BranchPredictor.h"
 #include "ExecutionUnit.h"
@@ -10,69 +14,69 @@
 
 class Processor {
 public:
+    //global program-counter.
     int pc;
+    
+    //global clock cycle count.
     int clock_cycle;
 
-    // pipeline registers
 
     std::vector<Instruction> inst_memory;
 
-    // architectural state (do not change)
-    std::vector<int> ARF; // regFile
-    std::vector<int> Memory; // Memory
-    bool exception = false; // exception bit
-
-    // register alias table / reorder buffer
+    //actual memory in hardware.
+    std::vector<int> ARF;
+    
+    std::vector<int> Memory;
+    bool exception = false;
 
     std::vector<ExecutionUnit> units;
     LoadStoreQueue* lsq;
     BranchPredictor bp;
 
-    Processor(ProcessorConfig& config) {
-        pc = 0;
-        clock_cycle = 0;
-        ARF.resize(config.num_regs, 0);
-        Memory.resize(config.mem_size);
+    std::vector<int> RAT;
+    std::vector<ROBEntry> ROB;
+    int rob_head = 0;
+    int rob_tail = 0;
+    int rob_count = 0;
+    int next_tag = 0;
 
-        // Instantiate Hardware Units
-        // Adder
-        // Multiplier
-        // Divider
-        // Branch Computation
-        // Bitwise Logic
-        // Load-Store Unit
-    }
+    bool fetched_valid = false;
+    Instruction fetched_inst;
+    int fetched_predicted_pc = -1;
 
-    void loadProgram(const std::string& filename) {
-        std::ifstream file(filename);
-    }
+    bool halted = false;
+    ProcessorConfig cfg;
 
-    void flush() {};
+    Processor(ProcessorConfig& config);
+    ~Processor();
 
-    void broadcastOnCDB() {};
+    void loadProgram(const std::string& filename);
+    void flush();
+    void broadcastOnCDB();
+    void stageFetch();
+    void stageDecode();
+    void stageExecuteAndBroadcast();
+    void stageCommit();
+    bool step();
+    void dumpArchitecturalState();
 
-    void stageFetch() {};
+private:
+    static std::string trim(const std::string &s);
+    static std::string cleanLine(const std::string &s);
+    static int regNum(std::string s);
+    static std::vector<std::string> splitOperands(const std::string &s);
 
-    void stageDecode() {};
-
-    void stageExecuteAndBroadcast() {};
-
-    void stageCommit() {};
-
-    bool step() {
-        clock_cycle++;
-        return true; // return false if CPU has no more to do after this cycle
-    }
-
-    void dumpArchitecturalState() {
-        std::cout << "\n=== ARCHITECTURAL STATE (CYCLE " << clock_cycle << ") ===\n";
-        for (int i = 0; i < ARF.size(); i++) {
-            std::cout << "x" << i << ": " << std::setw(4) << ARF[i] << " | ";
-            if ((i+1) % 8 == 0) std::cout << std::endl;
-        }
-        if (exception) {
-            std::cout << "EXCEPTION raised by instruction " << pc + 1 << std::endl;
-        }
-        std::cout << "Branch Predictor Stats: " << bp.correct_predictions << "/" << bp.total_branches << " correct.\n";
-    }
+    Instruction parseInstruction(const std::string &line, int curr_pc);
+    static void parseMemArg(const std::string &s, int &imm, int &base);
+    ExecutionUnit& getUnitRef(UnitType type);
+    UnitType getUnit(OpCode op);
+    int allocROB(const Instruction &ins);
+    int indexFromTag(int tag);
+    static bool writesReg(OpCode op);
+    void fillOperands(RSEntry &entry, const Instruction &ins);
+    void fillOperands(LSQEntry &entry, const Instruction &ins);
+    void readSource(int reg, bool &ready, int &val, int &tag);
+    void writeResult(const UnitResult &out);
+    void popROB();
+    bool pipelineEmpty();
 };

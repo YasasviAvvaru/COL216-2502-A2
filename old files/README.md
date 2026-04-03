@@ -1,12 +1,13 @@
 # Assignment 2: Out-of-Order Execution
 
-We improve the efficiency of processors by allowing instructions to execute *out of program order*. A common way to do this is by using **Reservation Stations(RS)**, **Register Alias Table(RAT)** and multiple **execution units**.
+Having seen the RISC-V ISA and pipelined processor implementation, we now move to improving the efficiency of processors by allowing instructions to execute *out of program order*. A common way to do this is by using **Reservation Stations**, **Register Alias Table** and multiple **execution units**.
 
 However, allowing this makes it difficult to deal with exceptions, such as when an instruction causes division by zero. In such a scenario, we want to be able to preserve the architectural state until right before the exception-causing instruction, and then report the instruction which caused the exception. 
 
-So, the architectural state during program execution should be modified strictly in program order. The way to support this is to use **Reorder Buffers(ROB)**.
+So, the architectural state during program execution should be modified strictly in program order. The way to support this is to use **Reorder Buffers**.
 
 ## Problem Statement
+
 Implement the (32-bit) out-of-order processor with precise exceptions, utilizing a register alias table, per-execution-unit reservation stations and a reorder buffer. 
 
 You can also implement a compiler which translates the input RISC-V file to a format that is easier for your C++ code to read.
@@ -102,6 +103,7 @@ Though we will execute instructions out-of-order, the most important thing to ke
 `Decode`: Decodes the instruction. Allocates an ROB entry. Also allocates the reservation station entries and updates the register alias table, if required for the instruction. Keep in mind that if the reservation station of the target unit is full, or the ROB is full, then the instruction needs to wait. Note that _every_ instruction must have an _ROB_ entry allocated.
 
 `Execute`: All execution units/load store queue process their inputs. Note that all execution units are _also pipelined_, which means they can be processing results for multiple instructions at a time, as long as these instructions are in different stages of the units' pipeline. At the start of each cycle, the unit checks its reservation station and starts executing the oldest entry (corresponding to the oldest instruction) that is ready to be executed.
+The latency of each execution unit is provided in the given config. For the Branch unit, the latency used should be **the same as the Adder unit**. 
 
 If any instructions are completed on any units, the units broadcast the computation result at the end of that very cycle (before the start of the next cycle) to all other stations/the ROB (so that they can perform tag managing and use the result). We assume a Common Data Bus of sufficient width, so that even if multiple units finish their execution in the same cycle, they can all broadcast their results. All Reservation Station entries are immediately deallocated once they are no longer needed at this time as well. 
 
