@@ -45,5 +45,5 @@ public:
     bool hasFreeRS() const;
     bool addEntry(const LSQEntry &entry);
     void capture(int tag, int val);
-    void executeCycle(std::vector<int> &memory);
+    void executeCycle(std::vector<int> &memory, const std::vector<ROBEntry> &rob);
 };

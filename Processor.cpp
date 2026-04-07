@@ -13,7 +13,7 @@ Processor::Processor(ProcessorConfig& config) {
     units.push_back(ExecutionUnit(UnitType::ADDER, config.add_lat, config.adder_rs_size));
     units.push_back(ExecutionUnit(UnitType::MULTIPLIER, config.mul_lat, config.mult_rs_size));
     units.push_back(ExecutionUnit(UnitType::DIVIDER, config.div_lat, config.div_rs_size));
-    units.push_back(ExecutionUnit(UnitType::BRANCH, 1, config.br_rs_size));
+    units.push_back(ExecutionUnit(UnitType::BRANCH, config.add_lat, config.br_rs_size));
     units.push_back(ExecutionUnit(UnitType::LOGIC, config.logic_lat, config.logic_rs_size));
 
     lsq = new LoadStoreQueue(config.mem_lat, config.lsq_rs_size);
@@ -125,6 +125,9 @@ void Processor::stageFetch() {
     if (halted || exception) {
         return;
     }
+    if (suppress_fetch_this_cycle) {
+        return;
+    }
     if (fetched_valid) {
         return;
     }
@@ -143,7 +146,7 @@ void Processor::stageDecode() {
         return;
     }
 
-    if (rob_count == cfg.rob_size) {
+    if (decode_rob_count_snapshot == cfg.rob_size) {
         return;
     }
 
@@ -152,11 +155,18 @@ void Processor::stageDecode() {
 
     if (ins.op != OpCode::J) {
         if (unit_type == UnitType::LOADSTORE) {
-            if (!lsq->hasFreeRS()) {
+            if (!decode_lsq_free_snapshot) {
                 return;
             }
         } else {
-            if (!getUnitRef(unit_type).hasFreeRS()) {
+            int unit_idx = -1;
+            for (int i = 0; i < (int)units.size(); i++) {
+                if (units[i].name == unit_type) {
+                    unit_idx = i;
+                    break;
+                }
+            }
+            if (unit_idx == -1 || !decode_unit_free_snapshot[unit_idx]) {
                 return;
             }
         }
@@ -212,8 +222,7 @@ void Processor::stageExecuteAndBroadcast() {
         unit.executeCycle();
     }
 
-    lsq->executeCycle(Memory);
-    broadcastOnCDB();
+    lsq->executeCycle(Memory, ROB);
 }
 
 void Processor::stageCommit() {
@@ -229,6 +238,7 @@ void Processor::stageCommit() {
     if (head.has_exception) {
         pc = head.pc;
         exception = true;
+        suppress_fetch_this_cycle = true;
         flush();
         halted = true;
         return;
@@ -260,6 +270,7 @@ void Processor::stageCommit() {
     if (mispred) {
         flush();
         pc = head.actual_next_pc;
+        suppress_fetch_this_cycle = true;
     }
 }
 
@@ -268,9 +279,21 @@ bool Processor::step() {
         return false;
     }
 
+    decode_arf_snapshot = ARF;
+    decode_rat_snapshot = RAT;
+    decode_rob_snapshot = ROB;
+    suppress_fetch_this_cycle = false;
+    decode_rob_count_snapshot = rob_count;
+    decode_lsq_free_snapshot = lsq->hasFreeRS();
+    decode_unit_free_snapshot.clear();
+    for (const auto &unit : units) {
+        decode_unit_free_snapshot.push_back(unit.hasFreeRS());
+    }
+
     stageCommit();
     stageExecuteAndBroadcast();
     stageDecode();
+    broadcastOnCDB();
     stageFetch();
 
     clock_cycle++;
@@ -604,23 +627,33 @@ void Processor::readSource(int reg, bool &ready, int &val, int &tag) {
         return;
     }
 
-    if (RAT[reg] == -1) {
+    if (decode_rat_snapshot[reg] == -1) {
         ready = true;
-        val = ARF[reg];
+        val = decode_arf_snapshot[reg];
         tag = -1;
         return;
     }
 
-    int idx = indexFromTag(RAT[reg]);
+    int idx = indexFromTagSnapshot(decode_rat_snapshot[reg]);
 
-    if (idx != -1 && ROB[idx].ready) {
+    if (idx != -1 && decode_rob_snapshot[idx].ready) {
         ready = true;
-        val = ROB[idx].value;
+        val = decode_rob_snapshot[idx].value;
         tag = -1;
     } else {
         ready = false;
-        tag = RAT[reg];
+        tag = decode_rat_snapshot[reg];
     }
+}
+
+int Processor::indexFromTagSnapshot(int tag) const {
+    for (int i = 0; i < cfg.rob_size; i++) {
+        if (decode_rob_snapshot[i].busy && decode_rob_snapshot[i].tag == tag) {
+            return i;
+        }
+    }
+
+    return -1;
 }
 
 void Processor::writeResult(const UnitResult &out) {

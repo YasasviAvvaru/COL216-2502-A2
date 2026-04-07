@@ -68,17 +68,7 @@ void ExecutionUnit::executeCycle() {
         }
     }
 
-    bool can_start = true;
-    if (name == UnitType::DIVIDER) {
-        for (const auto &job : pipe) {
-            if (job.left == latency - 1) {
-                can_start = false;
-                break;
-            }
-        }
-    }
-
-    if (pick != -1 && can_start) {
+    if (pick != -1) {
         PipelineJob job;
         job.tag = rs[pick].dest_tag;
         job.order_pc = rs[pick].order_pc;
@@ -97,9 +87,8 @@ void ExecutionUnit::executeCycle() {
     }
 
     std::vector<PipelineJob> next_pipe;
-    int finish_left = (name == UnitType::DIVIDER ? -2 : 0);
     for (auto &job : pipe) {
-        if (job.left == finish_left) {
+        if (job.left == 0) {
             UnitResult out = solve(job);
             finished.push_back(out);
 

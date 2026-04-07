@@ -42,7 +42,7 @@ void LoadStoreQueue::capture(int tag, int val) {
 
 }
 
-void LoadStoreQueue::executeCycle(std::vector<int> &memory) {
+void LoadStoreQueue::executeCycle(std::vector<int> &memory, const std::vector<ROBEntry> &rob) {
     finished.clear();
     has_result = false;
     has_exception = false;
@@ -52,24 +52,12 @@ void LoadStoreQueue::executeCycle(std::vector<int> &memory) {
 
         if (entries[0].op == OpCode::SW) {
             ok = ok && entries[0].ready2;
-        }
-
-        if (ok && entries[0].op == OpCode::SW) {
-            for (const auto &job : pipe) {
-                if (job.op == OpCode::SW) {
-                    ok = false;
-                    break;
-                }
-            }
-        }
-
-        if (ok && entries[0].op == OpCode::LW) {
+        } else if (ok) {
             int addr = entries[0].v1 + entries[0].imm;
             for (const auto &job : pipe) {
                 if (job.op == OpCode::SW &&
                     job.base + job.imm == addr &&
-                    (job.left > 2 ||
-                     (job.left > 1 && (addr % 4) != 0))) {
+                    job.left >= latency) {
                     ok = false;
                     break;
                 }
@@ -105,7 +93,27 @@ void LoadStoreQueue::executeCycle(std::vector<int> &memory) {
             if (addr < 0 || addr >= (int)memory.size()) {
                 out.has_exception = true;
             } else if (job.op == OpCode::LW) {
-                out.value = memory[addr];
+                int forwarded_tag = -1;
+                int forwarded_value = 0;
+
+                for (const auto &entry : rob) {
+                    if (!entry.busy || !entry.ready || !entry.is_store || entry.has_exception) {
+                        continue;
+                    }
+                    if (entry.tag >= job.tag || entry.store_addr != addr) {
+                        continue;
+                    }
+                    if (entry.tag > forwarded_tag) {
+                        forwarded_tag = entry.tag;
+                        forwarded_value = entry.store_data;
+                    }
+                }
+
+                if (forwarded_tag != -1) {
+                    out.value = forwarded_value;
+                } else {
+                    out.value = memory[addr];
+                }
             } else {
                 out.value = addr;
                 out.store_data = job.store_data;

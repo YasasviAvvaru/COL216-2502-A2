@@ -43,6 +43,13 @@ public:
     bool fetched_valid = false;
     Instruction fetched_inst;
     int fetched_predicted_pc = -1;
+    bool suppress_fetch_this_cycle = false;
+    std::vector<int> decode_arf_snapshot;
+    std::vector<int> decode_rat_snapshot;
+    std::vector<ROBEntry> decode_rob_snapshot;
+    int decode_rob_count_snapshot = 0;
+    bool decode_lsq_free_snapshot = false;
+    std::vector<bool> decode_unit_free_snapshot;
 
     bool halted = false;
     ProcessorConfig cfg;
@@ -76,6 +83,7 @@ private:
     void fillOperands(RSEntry &entry, const Instruction &ins);
     void fillOperands(LSQEntry &entry, const Instruction &ins);
     void readSource(int reg, bool &ready, int &val, int &tag);
+    int indexFromTagSnapshot(int tag) const;
     void writeResult(const UnitResult &out);
     void popROB();
     bool pipelineEmpty();
