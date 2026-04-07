@@ -4,19 +4,19 @@
 
 using namespace std;
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
     if (argc < 2) {
         cerr << "Usage: ./main <filename.s> [-cycles N]\n";
         return 1;
     }
 
-    int max_cycles = -1;
+    int maxCycles = -1;
     if (argc == 4 && string(argv[2]) == "-cycles") {
-        max_cycles = stoi(argv[3]);
+        maxCycles = stoi(argv[3]);
     }
 
     ProcessorConfig config;
-    Processor cpu = Processor(config);
+    Processor cpu(config);
 
     try {
         cpu.loadProgram(argv[1]);
@@ -25,18 +25,18 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    int cycle_count = 0;
+    int cycleCnt = 0;
 
     while (cpu.step()) {
-        cycle_count++;
+        cycleCnt++;
 
-        if (max_cycles != -1 && cycle_count == max_cycles) {
-            cout << "[!] Execution stopped at cycle limit: " << max_cycles << "\n";
+        if (maxCycles != -1 && cycleCnt == maxCycles) {
+            cout << "[!] Execution stopped at cycle limit: " << maxCycles << "\n";
             break;
         }
     }
 
-    if (max_cycles == -1) {
+    if (maxCycles == -1) {
         if (cpu.exception) {
             cout << "[+] Execution halted due to exception after " << cpu.clock_cycle << " cycles.\n";
         } else {
@@ -46,6 +46,7 @@ int main(int argc, char* argv[]) {
 
     cpu.dumpArchitecturalState();
 
+    // dump memory flat, nothing fancy
     for (size_t i = 0; i < cpu.Memory.size(); i++) {
         cout << cpu.Memory[i] << " ";
     }

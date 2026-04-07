@@ -34,10 +34,10 @@ public:
     std::vector<UnitResult> finished;
 
     ExecutionUnit();
-    ExecutionUnit(UnitType type, int lat, int sz);
+    ExecutionUnit(UnitType t, int lat, int sz);
 
     bool hasFreeRS() const;
-    bool addEntry(const RSEntry &entry);
+    bool addEntry(const RSEntry &e);
     void capture(int tag, int val);
     void executeCycle();
 

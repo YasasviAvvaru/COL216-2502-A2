@@ -22,9 +22,9 @@ string trim(string s) {
 }
 
 string removeComment(string s) {
-    int pos = (int)s.find('#');
-    if (pos != -1) {
-        s = s.substr(0, pos);
+    int p = (int)s.find('#');
+    if (p != -1) {
+        s = s.substr(0, p);
     }
     return trim(s);
 }
@@ -34,38 +34,38 @@ bool isMemoryLine(string s) {
 }
 
 vector<string> splitOperands(string s) {
-    vector<string> parts;
+    vector<string> out;
     for (char &c : s) {
         if (c == ',') {
             c = ' ';
         }
     }
 
-    string curr;
+    string x;
     stringstream ss(s);
-    while (ss >> curr) {
-        parts.push_back(curr);
+    while (ss >> x) {
+        out.push_back(x);
     }
 
-    return parts;
+    return out;
 }
 
 int countNumbers(string s) {
     int cnt = 0;
-    string curr = "";
+    string cur = "";
 
     for (char c : s) {
         if (c == ' ' || c == '\t') {
-            if (!curr.empty()) {
+            if (!cur.empty()) {
                 cnt++;
-                curr = "";
+                cur = "";
             }
         } else {
-            curr.push_back(c);
+            cur.push_back(c);
         }
     }
 
-    if (!curr.empty()) {
+    if (!cur.empty()) {
         cnt++;
     }
 
@@ -74,12 +74,12 @@ int countNumbers(string s) {
 
 string replaceMemoryLabels(string line, map<string, int> &memLabel) {
     for (auto it : memLabel) {
-        string oldPart = it.first + "(";
-        string newPart = to_string(it.second) + "(";
+        string oldStr = it.first + "(";
+        string newStr = to_string(it.second) + "(";
 
-        while (line.find(oldPart) != string::npos) {
-            int pos = (int)line.find(oldPart);
-            line.replace(pos, oldPart.size(), newPart);
+        while (line.find(oldStr) != string::npos) {
+            int p = (int)line.find(oldStr);
+            line.replace(p, oldStr.size(), newStr);
         }
     }
 
@@ -111,18 +111,18 @@ int main(int argc, char *argv[]) {
 
     int memPtr = 0;
 
-    // pass 1: memory labels
-    for (string curr : lines) {
-        if (curr.empty()) {
+    // first pass, data labels
+    for (string s : lines) {
+        if (s.empty()) {
             continue;
         }
-        if (!isMemoryLine(curr)) {
+        if (!isMemoryLine(s)) {
             continue;
         }
 
-        int pos = (int)curr.find(':');
-        string name = curr.substr(1, pos - 1);
-        string rest = trim(curr.substr(pos + 1));
+        int p = (int)s.find(':');
+        string name = s.substr(1, p - 1);
+        string rest = trim(s.substr(p + 1));
 
         memLabel[name] = memPtr;
         memPtr += countNumbers(rest);
@@ -130,22 +130,22 @@ int main(int argc, char *argv[]) {
 
     int pc = 0;
 
-    // pass 2: code labels
-    for (string curr : lines) {
-        if (curr.empty()) {
+    // second pass, code labels
+    for (string s : lines) {
+        if (s.empty()) {
             continue;
         }
-        if (isMemoryLine(curr)) {
+        if (isMemoryLine(s)) {
             continue;
         }
 
-        int pos = (int)curr.find(':');
-        if (pos != -1) {
-            string name = trim(curr.substr(0, pos));
+        int p = (int)s.find(':');
+        if (p != -1) {
+            string name = trim(s.substr(0, p));
             codeLabel[name] = pc;
 
-            curr = trim(curr.substr(pos + 1));
-            if (curr.empty()) {
+            s = trim(s.substr(p + 1));
+            if (s.empty()) {
                 continue;
             }
         }
@@ -156,34 +156,34 @@ int main(int argc, char *argv[]) {
     vector<string> out;
     pc = 0;
 
-    // pass 3: rewrite instructions
-    for (string curr : lines) {
-        if (curr.empty()) {
+    // now fix jumps/labels
+    for (string s : lines) {
+        if (s.empty()) {
             continue;
         }
 
-        if (isMemoryLine(curr)) {
-            out.push_back(curr);
+        if (isMemoryLine(s)) {
+            out.push_back(s);
             continue;
         }
 
-        int pos = (int)curr.find(':');
-        if (pos != -1) {
-            curr = trim(curr.substr(pos + 1));
-            if (curr.empty()) {
+        int p = (int)s.find(':');
+        if (p != -1) {
+            s = trim(s.substr(p + 1));
+            if (s.empty()) {
                 continue;
             }
         }
 
-        curr = replaceMemoryLabels(curr, memLabel);
+        s = replaceMemoryLabels(s, memLabel);
 
-        string op = curr;
+        string op = s;
         string rest = "";
 
-        pos = (int)curr.find(' ');
-        if (pos != -1) {
-            op = curr.substr(0, pos);
-            rest = trim(curr.substr(pos + 1));
+        p = (int)s.find(' ');
+        if (p != -1) {
+            op = s.substr(0, p);
+            rest = trim(s.substr(p + 1));
         }
 
         vector<string> args = splitOperands(rest);
@@ -192,18 +192,18 @@ int main(int argc, char *argv[]) {
             (int)args.size() == 3) {
             if (codeLabel.find(args[2]) != codeLabel.end()) {
                 int jump = codeLabel[args[2]] - pc;
-                curr = op + " " + args[0] + ", " + args[1] + ", " + to_string(jump);
+                s = op + " " + args[0] + ", " + args[1] + ", " + to_string(jump);
             }
         }
 
         if (op == "j" && (int)args.size() == 1) {
             if (codeLabel.find(args[0]) != codeLabel.end()) {
                 int jump = codeLabel[args[0]] - pc;
-                curr = op + " " + to_string(jump);
+                s = op + " " + to_string(jump);
             }
         }
 
-        out.push_back(curr);
+        out.push_back(s);
         pc++;
     }
 
@@ -212,8 +212,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    for (string curr : out) {
-        fout << curr << "\n";
+    for (string s : out) {
+        fout << s << "\n";
     }
 
     fout.close();

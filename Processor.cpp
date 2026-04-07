@@ -1,6 +1,6 @@
 #include "Processor.h"
 
-Processor::Processor(ProcessorConfig& config) {
+Processor::Processor(ProcessorConfig &config) {
     cfg = config;
     pc = 0;
     clock_cycle = 0;
@@ -23,7 +23,7 @@ Processor::~Processor() {
     delete lsq;
 }
 
-void Processor::loadProgram(const std::string& filename) {
+void Processor::loadProgram(const std::string &filename) {
     std::ifstream file(filename);
     if (!file.is_open()) {
         throw std::runtime_error("cannot open file");
@@ -33,8 +33,8 @@ void Processor::loadProgram(const std::string& filename) {
     std::fill(Memory.begin(), Memory.end(), 0);
 
     std::string line;
-    int curr_pc = 0;
-    int mem_ptr = 0;
+    int curPc = 0;
+    int memPtr = 0;
 
     while (std::getline(file, line)) {
         line = cleanLine(line);
@@ -50,13 +50,13 @@ void Processor::loadProgram(const std::string& filename) {
 
             std::string rest = trim(line.substr(pos + 1));
             std::stringstream ss(rest);
-            int val;
+            int x;
 
-            while (ss >> val) {
-                if (mem_ptr < (int)Memory.size()) {
-                    Memory[mem_ptr] = val;
+            while (ss >> x) {
+                if (memPtr < (int)Memory.size()) {
+                    Memory[memPtr] = x;
                 }
-                mem_ptr++;
+                memPtr++;
             }
             continue;
         }
@@ -73,8 +73,8 @@ void Processor::loadProgram(const std::string& filename) {
             }
         }
 
-        inst_memory.push_back(parseInstruction(line, curr_pc));
-        curr_pc++;
+        inst_memory.push_back(parseInstruction(line, curPc));
+        curPc++;
     }
 }
 
@@ -110,8 +110,8 @@ void Processor::flush() {
 }
 
 void Processor::broadcastOnCDB() {
-    for (auto &unit : units) {
-        for (auto &out : unit.finished) {
+    for (auto &u : units) {
+        for (auto &out : u.finished) {
             writeResult(out);
         }
     }
@@ -151,22 +151,22 @@ void Processor::stageDecode() {
     }
 
     Instruction ins = fetched_inst;
-    UnitType unit_type = getUnit(ins.op);
+    UnitType unitType = getUnit(ins.op);
 
     if (ins.op != OpCode::J) {
-        if (unit_type == UnitType::LOADSTORE) {
+        if (unitType == UnitType::LOADSTORE) {
             if (!decode_lsq_free_snapshot) {
                 return;
             }
         } else {
-            int unit_idx = -1;
+            int unitIdx = -1;
             for (int i = 0; i < (int)units.size(); i++) {
-                if (units[i].name == unit_type) {
-                    unit_idx = i;
+                if (units[i].name == unitType) {
+                    unitIdx = i;
                     break;
                 }
             }
-            if (unit_idx == -1 || !decode_unit_free_snapshot[unit_idx]) {
+            if (unitIdx == -1 || !decode_unit_free_snapshot[unitIdx]) {
                 return;
             }
         }
@@ -186,28 +186,28 @@ void Processor::stageDecode() {
         return;
     }
 
-    if (unit_type == UnitType::LOADSTORE) {
-        LSQEntry entry;
-        fillOperands(entry, ins);
+    if (unitType == UnitType::LOADSTORE) {
+        LSQEntry e;
+        fillOperands(e, ins);
 
-        entry.busy = true;
-        entry.order_pc = ins.pc;
-        entry.dest_tag = tag;
-        entry.op = ins.op;
-        entry.imm = ins.imm;
+        e.busy = true;
+        e.order_pc = ins.pc;
+        e.dest_tag = tag;
+        e.op = ins.op;
+        e.imm = ins.imm;
 
-        lsq->addEntry(entry);
+        lsq->addEntry(e);
     } else {
-        RSEntry entry;
-        fillOperands(entry, ins);
+        RSEntry e;
+        fillOperands(e, ins);
 
-        entry.busy = true;
-        entry.order_pc = ins.pc;
-        entry.dest_tag = tag;
-        entry.op = ins.op;
-        entry.imm = ins.imm;
+        e.busy = true;
+        e.order_pc = ins.pc;
+        e.dest_tag = tag;
+        e.op = ins.op;
+        e.imm = ins.imm;
 
-        getUnitRef(unit_type).addEntry(entry);
+        getUnitRef(unitType).addEntry(e);
     }
 
     if (writesReg(ins.op) && ins.dest != 0) {
@@ -218,8 +218,8 @@ void Processor::stageDecode() {
 }
 
 void Processor::stageExecuteAndBroadcast() {
-    for (auto &unit : units) {
-        unit.executeCycle();
+    for (auto &u : units) {
+        u.executeCycle();
     }
 
     lsq->executeCycle(Memory, ROB);
@@ -254,16 +254,16 @@ void Processor::stageCommit() {
         }
     }
 
-    bool is_cond_branch = bp.isBranch(head.op);
+    bool isCondBranch = bp.isBranch(head.op);
     bool mispred = false;
 
-    if (head.op == OpCode::J || is_cond_branch) {
+    if (head.op == OpCode::J || isCondBranch) {
         mispred = (head.predicted_pc != head.actual_next_pc);
     }
 
     popROB();
 
-    if (is_cond_branch) {
+    if (isCondBranch) {
         bp.update(head.pc, head.actual_next_pc, head.branch_taken, !mispred);
     }
 
@@ -286,8 +286,8 @@ bool Processor::step() {
     decode_rob_count_snapshot = rob_count;
     decode_lsq_free_snapshot = lsq->hasFreeRS();
     decode_unit_free_snapshot.clear();
-    for (const auto &unit : units) {
-        decode_unit_free_snapshot.push_back(unit.hasFreeRS());
+    for (const auto &u : units) {
+        decode_unit_free_snapshot.push_back(u.hasFreeRS());
     }
 
     stageCommit();
@@ -369,25 +369,25 @@ int Processor::regNum(std::string s) {
 }
 
 std::vector<std::string> Processor::splitOperands(const std::string &s) {
-    std::vector<std::string> parts;
-    std::string normalized = s;
+    std::vector<std::string> out;
+    std::string t = s;
 
-    for (char &c : normalized) {
+    for (char &c : t) {
         if (c == ',') {
             c = ' ';
         }
     }
 
-    std::stringstream ss(normalized);
-    std::string part;
-    while (ss >> part) {
-        parts.push_back(part);
+    std::stringstream ss(t);
+    std::string x;
+    while (ss >> x) {
+        out.push_back(x);
     }
 
-    return parts;
+    return out;
 }
 
-Instruction Processor::parseInstruction(const std::string &line, int curr_pc) {
+Instruction Processor::parseInstruction(const std::string &line, int curPc) {
     std::stringstream ss(line);
     std::string op;
     ss >> op;
@@ -399,8 +399,9 @@ Instruction Processor::parseInstruction(const std::string &line, int curr_pc) {
     std::vector<std::string> args = splitOperands(rest);
 
     Instruction ins;
-    ins.pc = curr_pc;
+    ins.pc = curPc;
 
+    // yeah this is long, but it works
     if (op == "add") {
         ins.op = OpCode::ADD;
         ins.dest = regNum(args[0]);
@@ -517,10 +518,10 @@ void Processor::parseMemArg(const std::string &s, int &imm, int &base) {
     base = regNum(trim(s.substr(p1 + 1, p2 - p1 - 1)));
 }
 
-ExecutionUnit& Processor::getUnitRef(UnitType type) {
-    for (auto &unit : units) {
-        if (unit.name == type) {
-            return unit;
+ExecutionUnit &Processor::getUnitRef(UnitType type) {
+    for (auto &u : units) {
+        if (u.name == type) {
+            return u;
         }
     }
 
@@ -558,18 +559,18 @@ int Processor::allocROB(const Instruction &ins) {
         return -1;
     }
 
-    ROBEntry entry;
-    entry.busy = true;
-    entry.tag = next_tag++;
-    entry.pc = ins.pc;
-    entry.predicted_pc = fetched_predicted_pc;
-    entry.actual_next_pc = ins.pc + 1;
-    entry.op = ins.op;
-    entry.is_store = (ins.op == OpCode::SW);
-    entry.writes_reg = writesReg(ins.op);
-    entry.dest_reg = ins.dest;
+    ROBEntry e;
+    e.busy = true;
+    e.tag = next_tag++;
+    e.pc = ins.pc;
+    e.predicted_pc = fetched_predicted_pc;
+    e.actual_next_pc = ins.pc + 1;
+    e.op = ins.op;
+    e.is_store = (ins.op == OpCode::SW);
+    e.writes_reg = writesReg(ins.op);
+    e.dest_reg = ins.dest;
 
-    ROB[rob_tail] = entry;
+    ROB[rob_tail] = e;
 
     int idx = rob_tail;
     rob_tail = (rob_tail + 1) % cfg.rob_size;
@@ -594,6 +595,7 @@ bool Processor::writesReg(OpCode op) {
 }
 
 void Processor::fillOperands(RSEntry &entry, const Instruction &ins) {
+    // src1 is always the boring part
     readSource(ins.src1, entry.ready1, entry.v1, entry.q1);
 
     if (ins.op == OpCode::ADDI || ins.op == OpCode::SLTI ||
@@ -683,8 +685,8 @@ void Processor::writeResult(const UnitResult &out) {
         ROB[idx].value = out.value;
     }
 
-    for (auto &unit : units) {
-        unit.capture(out.tag, out.value);
+    for (auto &u : units) {
+        u.capture(out.tag, out.value);
     }
 
     lsq->capture(out.tag, out.value);
@@ -701,13 +703,13 @@ bool Processor::pipelineEmpty() {
         return false;
     }
 
-    for (auto &unit : units) {
-        if (!unit.pipe.empty()) {
+    for (auto &u : units) {
+        if (!u.pipe.empty()) {
             return false;
         }
 
-        for (auto &entry : unit.rs) {
-            if (entry.busy) {
+        for (auto &e : u.rs) {
+            if (e.busy) {
                 return false;
             }
         }

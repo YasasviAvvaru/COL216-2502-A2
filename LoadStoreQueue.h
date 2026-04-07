@@ -43,7 +43,7 @@ public:
     LoadStoreQueue(int lat, int sz);
 
     bool hasFreeRS() const;
-    bool addEntry(const LSQEntry &entry);
+    bool addEntry(const LSQEntry &e);
     void capture(int tag, int val);
     void executeCycle(std::vector<int> &memory, const std::vector<ROBEntry> &rob);
 };

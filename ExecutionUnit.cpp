@@ -3,26 +3,26 @@
 ExecutionUnit::ExecutionUnit() {
 }
 
-ExecutionUnit::ExecutionUnit(UnitType type, int lat, int sz) {
-    name = type;
+ExecutionUnit::ExecutionUnit(UnitType t, int lat, int sz) {
+    name = t;
     latency = lat;
     rs_size = sz;
     rs.resize(sz);
 }
 
 bool ExecutionUnit::hasFreeRS() const {
-    for (auto &entry : rs) {
-        if (!entry.busy) {
+    for (auto &x : rs) {
+        if (!x.busy) {
             return true;
         }
     }
     return false;
 }
 
-bool ExecutionUnit::addEntry(const RSEntry &entry) {
-    for (auto &slot : rs) {
-        if (!slot.busy) {
-            slot = entry;
+bool ExecutionUnit::addEntry(const RSEntry &e) {
+    for (auto &x : rs) {
+        if (!x.busy) {
+            x = e;
             return true;
         }
     }
@@ -30,21 +30,21 @@ bool ExecutionUnit::addEntry(const RSEntry &entry) {
 }
 
 void ExecutionUnit::capture(int tag, int val) {
-    for (auto &entry : rs) {
-        if (!entry.busy) {
+    for (auto &x : rs) {
+        if (!x.busy) {
             continue;
         }
 
-        if (!entry.ready1 && entry.q1 == tag) {
-            entry.ready1 = true;
-            entry.q1 = -1;
-            entry.v1 = val;
+        if (!x.ready1 && x.q1 == tag) {
+            x.ready1 = true;
+            x.q1 = -1;
+            x.v1 = val;
         }
 
-        if (!entry.ready2 && entry.q2 == tag) {
-            entry.ready2 = true;
-            entry.q2 = -1;
-            entry.v2 = val;
+        if (!x.ready2 && x.q2 == tag) {
+            x.ready2 = true;
+            x.q2 = -1;
+            x.v2 = val;
         }
     }
 }
@@ -54,7 +54,7 @@ void ExecutionUnit::executeCycle() {
     has_result = false;
     has_exception = false;
 
-    int pick = -1;
+    int best = -1;
     for (int i = 0; i < (int)rs.size(); i++) {
         if (!rs[i].busy) {
             continue;
@@ -63,44 +63,44 @@ void ExecutionUnit::executeCycle() {
             continue;
         }
 
-        if (pick == -1 || rs[i].order_pc < rs[pick].order_pc) {
-            pick = i;
+        if (best == -1 || rs[i].order_pc < rs[best].order_pc) {
+            best = i;
         }
     }
 
-    if (pick != -1) {
-        PipelineJob job;
-        job.tag = rs[pick].dest_tag;
-        job.order_pc = rs[pick].order_pc;
-        job.op1 = rs[pick].v1;
-        job.op2 = rs[pick].v2;
-        job.imm = rs[pick].imm;
-        job.left = latency;
-        job.op = rs[pick].op;
+    if (best != -1) {
+        PipelineJob cur;
+        cur.tag = rs[best].dest_tag;
+        cur.order_pc = rs[best].order_pc;
+        cur.op1 = rs[best].v1;
+        cur.op2 = rs[best].v2;
+        cur.imm = rs[best].imm;
+        cur.left = latency;
+        cur.op = rs[best].op;
 
-        pipe.push_back(job);
-        rs[pick].busy = false;
+        pipe.push_back(cur);
+        rs[best].busy = false;
     }
 
-    for (auto &job : pipe) {
-        job.left--;
+    for (auto &x : pipe) {
+        x.left--;
     }
 
-    std::vector<PipelineJob> next_pipe;
-    for (auto &job : pipe) {
-        if (job.left == 0) {
-            UnitResult out = solve(job);
+    std::vector<PipelineJob> nxt;
+    for (auto &x : pipe) {
+        if (x.left == 0) {
+            UnitResult out = solve(x);
             finished.push_back(out);
 
             if (out.has_exception) {
                 has_exception = true;
             }
         } else {
-            next_pipe.push_back(job);
+            nxt.push_back(x);
         }
     }
 
-    pipe = next_pipe;
+    pipe = nxt;
     has_result = !finished.empty();
 }
 
@@ -174,12 +174,12 @@ UnitResult ExecutionUnit::solve(const PipelineJob &job) {
     }
 
     if (!out.has_exception) {
-        bool check_overflow =
+        bool checkOverflow =
             job.op == OpCode::ADD || job.op == OpCode::SUB ||
             job.op == OpCode::ADDI || job.op == OpCode::MUL ||
             job.op == OpCode::DIV || job.op == OpCode::REM;
 
-        if (check_overflow) {
+        if (checkOverflow) {
             if (ans > 2147483647LL || ans < -2147483648LL) {
                 out.has_exception = true;
             }

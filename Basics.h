@@ -1,14 +1,12 @@
 #pragma once
 #include <string>
 
-// opcodes supported in the simulator
 enum class OpCode {
     ADD, SUB, ADDI, MUL, DIV, REM, LW, SW,
     BEQ, BNE, BLT, BLE, J,
     SLT, SLTI, AND, OR, XOR, ANDI, ORI, XORI
 };
 
-// execution unit types
 enum class UnitType {
     ADDER,
     MULTIPLIER,
@@ -18,7 +16,6 @@ enum class UnitType {
     LOGIC
 };
 
-// one parsed instruction
 struct Instruction {
     OpCode op = OpCode::ADD;
     int dest = -1;
@@ -28,7 +25,6 @@ struct Instruction {
     int pc = 0;
 };
 
-// config of processor
 struct ProcessorConfig {
     int num_regs = 32;
     int rob_size = 64;
@@ -48,7 +44,6 @@ struct ProcessorConfig {
     int lsq_rs_size = 32;
 };
 
-// one ROB entry
 struct ROBEntry {
     bool busy = false;
     bool ready = false;
@@ -72,7 +67,6 @@ struct ROBEntry {
     bool branch_taken = false;
 };
 
-// one RS entry
 struct RSEntry {
     bool busy = false;
     int order_pc = -1;

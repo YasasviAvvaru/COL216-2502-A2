@@ -14,18 +14,12 @@
 
 class Processor {
 public:
-    //global program-counter.
     int pc;
-    
-    //global clock cycle count.
     int clock_cycle;
-
 
     std::vector<Instruction> inst_memory;
 
-    //actual memory in hardware.
     std::vector<int> ARF;
-    
     std::vector<int> Memory;
     bool exception = false;
 
@@ -54,10 +48,10 @@ public:
     bool halted = false;
     ProcessorConfig cfg;
 
-    Processor(ProcessorConfig& config);
+    Processor(ProcessorConfig &config);
     ~Processor();
 
-    void loadProgram(const std::string& filename);
+    void loadProgram(const std::string &filename);
     void flush();
     void broadcastOnCDB();
     void stageFetch();
@@ -73,9 +67,9 @@ private:
     static int regNum(std::string s);
     static std::vector<std::string> splitOperands(const std::string &s);
 
-    Instruction parseInstruction(const std::string &line, int curr_pc);
+    Instruction parseInstruction(const std::string &line, int curPc);
     static void parseMemArg(const std::string &s, int &imm, int &base);
-    ExecutionUnit& getUnitRef(UnitType type);
+    ExecutionUnit &getUnitRef(UnitType type);
     UnitType getUnit(OpCode op);
     int allocROB(const Instruction &ins);
     int indexFromTag(int tag);
