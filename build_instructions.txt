@@ -1,0 +1,37 @@
+Build:
+make compile FILE=main.cpp
+
+This creates the simulator binary as `main`.
+
+If `make` is not available, use:
+g++ -std=c++17 -Wall main.cpp Processor.cpp BranchPredictor.cpp ExecutionUnit.cpp LoadStoreQueue.cpp -o main
+g++ -std=c++17 -Wall compiler.cpp -o compiler
+
+Preprocess an assembly file:
+make run FILE=program.s
+
+That rewrites the same input file in-place so labels are converted into the format expected by the simulator.
+
+Without `make`, preprocess manually with:
+./compiler program.s
+
+Run:
+./main program.s
+
+Run with a cycle limit:
+./main program.s -cycles 100
+
+Files kept in this repo:
+Basics.h
+BranchPredictor.cpp
+BranchPredictor.h
+ExecutionUnit.cpp
+ExecutionUnit.h
+LoadStoreQueue.cpp
+LoadStoreQueue.h
+Makefile
+Processor.cpp
+Processor.h
+compiler.cpp
+main.cpp
+build_instructions.txt
