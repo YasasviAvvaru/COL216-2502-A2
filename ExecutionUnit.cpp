@@ -11,7 +11,7 @@ ExecutionUnit::ExecutionUnit(UnitType t, int lat, int sz) {
 }
 
 bool ExecutionUnit::hasFreeRS() const {
-    for (auto &x : rs) {
+    for (const auto &x : rs) {
         if (!x.busy) {
             return true;
         }
@@ -20,6 +20,10 @@ bool ExecutionUnit::hasFreeRS() const {
 }
 
 bool ExecutionUnit::addEntry(const RSEntry &e) {
+    if (!hasFreeRS()) {
+        return false;
+    }
+
     for (auto &x : rs) {
         if (!x.busy) {
             x = e;
@@ -59,6 +63,9 @@ void ExecutionUnit::executeCycle() {
         if (!rs[i].busy) {
             continue;
         }
+        if (rs[i].issued) {
+            continue;
+        }
         if (!rs[i].ready1 || !rs[i].ready2) {
             continue;
         }
@@ -79,7 +86,7 @@ void ExecutionUnit::executeCycle() {
         cur.op = rs[best].op;
 
         pipe.push_back(cur);
-        rs[best].busy = false;
+        rs[best].issued = true;
     }
 
     for (auto &x : pipe) {
@@ -91,6 +98,13 @@ void ExecutionUnit::executeCycle() {
         if (x.left == 0) {
             UnitResult out = solve(x);
             finished.push_back(out);
+
+            for (auto &slot : rs) {
+                if (slot.busy && slot.dest_tag == x.tag) {
+                    slot = RSEntry();
+                    break;
+                }
+            }
 
             if (out.has_exception) {
                 has_exception = true;

@@ -69,6 +69,7 @@ struct ROBEntry {
 
 struct RSEntry {
     bool busy = false;
+    bool issued = false;
     int order_pc = -1;
     int dest_tag = -1;
     OpCode op = OpCode::ADD;
